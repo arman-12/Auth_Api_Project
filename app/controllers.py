@@ -1,10 +1,14 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from .models import db, User
-from .utils import send_verification_email, validate_email_format
+from .utils import validate_email_format, VerificationService
 from flask_mail import Mail
 
+# Blueprint and Mail initialization
 controllers_blueprint = Blueprint('controllers', __name__)
 mail = Mail()
+
+# Create an instance of the VerificationService
+verification_service = VerificationService(mail)
 
 # Show registration form
 @controllers_blueprint.route('/register', methods=['GET'])
@@ -28,13 +32,14 @@ def register_user():
         flash('Registration unsuccessful. Please check your details and try again.', 'danger')
         return redirect(url_for('controllers.show_register_form'))
 
+    # Hash password and create a new user
     hashed_password = User.hash_password(password)
     new_user = User(username=username, email=email, password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
 
-    # Send verification email
-    send_verification_email(email, mail)
+    # Use VerificationService to send the verification email
+    verification_service.send_verification_email(email)
 
     flash('If this email is valid, a verification mail has been sent.', 'success')
     return redirect(url_for('controllers.show_login_form'))
